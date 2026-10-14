@@ -722,6 +722,12 @@ patchset if the endpoints have moved. The system never refreshes
 automatically; mere passive viewing of a review doesn't create
 patchsets.
 
+Bare string patterns in a revset are globs, as in jj. A revset like
+`bookmarks(feat)` matches only the bookmark `feat`. An existing
+review whose revset depended on substring matching re-resolves
+differently on its next refresh, either to a different commit set
+or to none.
+
 ### 10.2 Per-patchset comment authorship
 
 Every comment remembers which patchset it was written against. The
@@ -742,7 +748,8 @@ opens an inline editor. Saving validates the new expression
 against the underlying jj repo and records a new patchset for
 the resolved endpoints (or no new patchset if they happen to
 match the current one, making the operation idempotent).
-Continuation versus rewritten follows the same rule as a
+Patterns in the new revset follow the same glob rule as a refresh
+(§10.1). Continuation versus rewritten follows the same rule as a
 refresh: a descendant tip or the same change-id is a
 continuation; anything else is recorded with `parent_patchset:
 null`. Non-creators don't see the affordance — the same
