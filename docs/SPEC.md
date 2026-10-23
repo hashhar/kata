@@ -164,6 +164,19 @@ with one of four **anchor states**:
 Anchor drift is visible at a glance; it never silently destroys a
 comment, and it never silently relocates one to the wrong place.
 
+In the per-commit view (a commits-panel row is selected) the same
+re-location runs against the selected commit instead of the
+patchset. Tip-side anchors resolve against the commit and base-side
+anchors against its parent. A comment or annotation written on that
+commit renders at its original lines. One written on another commit
+or in the full-review view renders where its content sits in this
+commit, with the moved or drifted badge when it applies. A rewritten
+commit carries its threads into the next patchset the same way. The
+per-commit view shows every thread on the files the commit touches:
+inline when its line is in the commit's diff, in the group above the
+file's hunks otherwise, and as outdated when its content isn't in the
+commit.
+
 ### 2.7 Annotation
 
 An *annotation* is the author's counterpart to a comment: a note
