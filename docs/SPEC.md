@@ -327,11 +327,17 @@ The review viewer responds to a small set of single-key shortcuts.
 Every shortcut bails when the focus is inside a comment composer,
 the search field, or any other input — the letter belongs to the
 field. Modifier combinations (Ctrl / Cmd / Alt) also bail so the
-keys don't shadow browser or OS chords.
+keys don't shadow browser or OS chords. The one exception is the
+find chord (Cmd+F on macOS, Ctrl+F elsewhere): the browser's find
+misses virtualised files (§12.5), so the chord opens the review
+search from anywhere on the page, inputs included. Pressed again
+from inside the search field, it falls through to the browser's
+find.
 
 | Key | Action |
 | --- | --- |
 | <code>/</code> | Open the in-review search bar. |
+| <code>Cmd+F</code> / <code>Ctrl+F</code> | Open the in-review search bar; from inside its field, the browser's find. |
 | <code>j</code> / <code>k</code> | Next / previous comment (the same walk the toolbar's `< >` cluster drives). |
 | <code>n</code> / <code>p</code> | Next / previous file. |
 | <code>?</code> | Toggle the keyboard-shortcut help overlay. |
@@ -940,8 +946,9 @@ search that knows the review's structure.
 
 The search bar lives in the row-2 header, between the patchset
 picker and the comment-nav cluster. Press **`/`** anywhere on
-the review page (outside an input or composer) to open it, or
-click the 🔍 button. **Esc** closes; **Enter** walks to the next
+the review page (outside an input or composer) or **Cmd/Ctrl+F**
+anywhere to open it and focus its field, or click the 🔍 button.
+Cmd/Ctrl+F from inside the field opens the browser's own find. **Esc** closes; **Enter** walks to the next
 match, **Shift+Enter** (or the chevron arrows) to the previous.
 
 The match counter on the right of the input shows `M of N` —

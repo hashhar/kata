@@ -70,7 +70,7 @@
   <button
     type="button"
     class="search-toggle"
-    title="Search the review ( / )"
+    title="Search the review ( / or Ctrl/Cmd+F )"
     aria-label="Search the review"
     data-tour="search"
     onclick={onopen}

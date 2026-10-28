@@ -24,6 +24,7 @@
   import { resolutionFor } from '../lib/resolution';
   import { createFoldStore, type FoldStore } from '../lib/foldStore';
   import { parseLineRangeHash } from '../lib/linkHash';
+  import { findChordLabel, isFindChord } from '../lib/findChord';
   import { searchReview, selectorForMatch, type SearchMatch } from '../lib/search';
   import {
     annotationComposerSurvivesPatchset,
@@ -833,6 +834,19 @@
   function openSearch() {
     if (searchOpen) return;
     searchOpen = true;
+  }
+
+  /** Open the search bar if needed and put the cursor in its field,
+   *  with any previous query selected so typing replaces it. */
+  const platform =
+    typeof navigator !== 'undefined' ? navigator.platform || navigator.userAgent : '';
+
+  async function focusSearch() {
+    openSearch();
+    await tick();
+    const input = document.querySelector<HTMLInputElement>('input.search-input');
+    input?.focus();
+    input?.select();
   }
 
   /** Keep the search index's diff coverage in step with the rendered
@@ -2592,7 +2606,8 @@
    *  textarea, select, or contenteditable — the user is typing
    *  there and the bare letter belongs to that field. Modifier
    *  combinations (Ctrl/Cmd/Alt) also bail so we don't shadow
-   *  browser / OS shortcuts. */
+   *  browser / OS shortcuts, except Ctrl/Cmd+F: the browser's find
+   *  can't see virtualised files, so it opens the review search. */
   onMount(() => {
     function isEditableTarget(t: EventTarget | null): boolean {
       const el = t as HTMLElement | null;
@@ -2603,7 +2618,16 @@
       return false;
     }
     function onKey(e: KeyboardEvent) {
-      // All shortcuts here ignore modifier-key combinations so they
+      // Ctrl/Cmd+F opens the review search. Pressed again from inside
+      // the search field, it falls through to the browser's find.
+      if (isFindChord(e, platform)) {
+        const el = e.target as HTMLElement | null;
+        if (el?.classList?.contains?.('search-input')) return;
+        e.preventDefault();
+        void focusSearch();
+        return;
+      }
+      // All other shortcuts ignore modifier-key combinations so they
       // don't shadow browser / OS chords like Ctrl+/, Cmd+K, etc.
       if (e.metaKey || e.ctrlKey || e.altKey) return;
 
@@ -3831,6 +3855,8 @@
       <dl class="help-list">
         <dt><kbd>/</kbd></dt>
         <dd>Open search</dd>
+        <dt><kbd>{findChordLabel(platform)}</kbd></dt>
+        <dd>Open search; again from the search field for the browser's find</dd>
         <dt><kbd>j</kbd> <span class="help-sep">/</span> <kbd>k</kbd></dt>
         <dd>Next / previous comment</dd>
         <dt><kbd>n</kbd> <span class="help-sep">/</span> <kbd>p</kbd></dt>
