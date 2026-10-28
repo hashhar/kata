@@ -22,6 +22,16 @@
   import Chevron from './Chevron.svelte';
   import CommentThread from './CommentThread.svelte';
   import { computeHunkWordDiff, wrapRanges } from '../lib/wordDiff';
+  import {
+    movedBlockOf,
+    movedBlockStartingAt,
+    movedClass,
+    movedHref,
+    movedLabel,
+    movedLookup,
+    movedTitle,
+    type MovedLookup,
+  } from '../lib/moved';
   import { preserveScrollAnchor } from '../lib/scrollAnchor';
   import type { SearchMatch } from '../lib/search';
 
@@ -100,10 +110,13 @@
      *  diff stays clean and threads become clickable markers in the
      *  gutter; `both` mode passes false. */
     defaultThreadsCollapsed?: boolean;
+    /** Moved blocks of this file, from `FileChange.moved`. */
+    movedAt?: MovedLookup;
   }
   const {
     hunk,
     filePath,
+    movedAt = movedLookup(undefined),
     comments,
     annotations = [],
     responses,
@@ -329,7 +342,9 @@
 
   /** Word-level diff overlays per paired remove/add row in this hunk.
    *  Recomputed when the hunk lines change; cheap enough not to memo. */
-  const wordDiff = $derived(computeHunkWordDiff(hunk.lines));
+  const wordDiff = $derived(
+    computeHunkWordDiff(hunk.lines, (i) => movedBlockOf(movedAt, hunk.lines[i]) != null),
+  );
 
   /** Apply the word-diff overlay (if any) and any intra-line column
    *  highlights from comments anchored to this row. Word-diff goes
@@ -815,7 +830,21 @@
            index 1 baseline + (totalLines - i) so the earliest
            marker wins. -->
       {@const stackZ = markerCount > 0 ? hunk.lines.length - i + 1 : undefined}
-      <tr class={`${rowClass(line.origin)}${isCommented(a) ? ' commented' : ''}${isFullLineCommented(a) ? ' commented-fullline' : ''}${commentRangeClasses(a)}`}>
+      {@const moved = movedBlockOf(movedAt, line)}
+      {@const movedStart = movedBlockStartingAt(movedAt, line)}
+      {#if movedStart}
+        <tr class="moved-label-row">
+          <td colspan={(showBase ? 1 : 0) + (showTip ? 1 : 0) + 1}>
+            <a
+              class="moved-badge{movedClass(movedStart)}"
+              data-tour="moved-badge"
+              title={movedTitle(movedStart, filePath)}
+              href={movedHref(movedStart)}>{movedLabel(movedStart, filePath)}</a
+            >
+          </td>
+        </tr>
+      {/if}
+      <tr class={`${rowClass(line.origin)}${movedClass(moved)}${isCommented(a) ? ' commented' : ''}${isFullLineCommented(a) ? ' commented-fullline' : ''}${commentRangeClasses(a)}`}>
         {#if showBase}
           <!-- data-side/data-line are also on the gutter cell so that the
                drag-selection logic finds it via `elementFromPoint` while
@@ -1189,6 +1218,59 @@
 
   .row.removed .ln {
     background: var(--remove-bg-strong);
+  }
+
+  /* Moved lines go quiet so the real edits around them stand out. A
+   * bar on the code's left edge says which end of the move this is. */
+  .row.moved {
+    background: var(--bg-panel);
+  }
+  .row.moved .ln {
+    background: var(--bg-elevated);
+  }
+  .row.moved .content {
+    box-shadow: inset 3px 0 0 var(--moved-edge);
+  }
+  .row.moved .content pre {
+    opacity: 0.65;
+  }
+  .moved-from {
+    --moved-edge: var(--moved-from-edge);
+  }
+  .moved-to {
+    --moved-edge: var(--moved-to-edge);
+  }
+  .moved-alt {
+    --moved-edge: var(--moved-alt-edge);
+  }
+
+  .moved-label-row td {
+    padding: 2px 8px;
+    background: var(--bg);
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    line-height: 1.4;
+    user-select: none;
+  }
+  .moved-badge {
+    position: sticky;
+    left: 8px;
+    display: inline-block;
+    /* Never wider than the visible pane, so a long label ends in an
+     * ellipsis instead of running under the pane's edge. */
+    max-width: calc(var(--content-vp-width, 100%) - 24px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: bottom;
+    padding: 0 6px;
+    border: 1px solid var(--moved-edge);
+    border-radius: 999px;
+    color: var(--moved-edge);
+    font-size: 11px;
+    text-decoration: none;
+  }
+  .moved-badge:hover {
+    background: var(--bg-panel);
   }
 
   .content {

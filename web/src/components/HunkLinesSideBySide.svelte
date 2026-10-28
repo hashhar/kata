@@ -23,6 +23,17 @@
   import CommentThread from './CommentThread.svelte';
   import { computeHunkWordDiff, wrapRanges } from '../lib/wordDiff';
   import { alignBlock, alignedRows } from '../lib/hunkAlign';
+  import {
+    movedBlockOf,
+    movedBlockStartingAt,
+    movedClass,
+    movedHref,
+    movedLabel,
+    movedLookup,
+    movedTitle,
+    type MovedLookup,
+  } from '../lib/moved';
+  import type { MovedLines } from '../lib/types';
   import { preserveScrollAnchor } from '../lib/scrollAnchor';
   import type { SearchMatch } from '../lib/search';
 
@@ -86,10 +97,13 @@
     ondeleteannotation?: (annotation: AnnotationView) => Promise<void>;
     oneditannotation?: (annotation: AnnotationView) => void;
     defaultThreadsCollapsed?: boolean;
+    /** Moved blocks of this file, from `FileChange.moved`. */
+    movedAt?: MovedLookup;
   }
   const {
     hunk,
     filePath,
+    movedAt = movedLookup(undefined),
     comments,
     annotations = [],
     responses,
@@ -243,10 +257,16 @@
       // reader needs to see "this and that correspond." Strictly
       // index-paired N:N blocks degenerate to identical output via
       // the DP, so the common case is unchanged.
+      // Moved lines stay on rows of their own: pairing one with an
+      // unrelated edit would word-diff two lines that don't correspond.
       const aligned = alignedRows(
         alignBlock(
           removes.map((l) => l.content.replace(/\n$/, '')),
           adds.map((l) => l.content.replace(/\n$/, '')),
+          {
+            removes: (k) => movedBlockOf(movedAt, removes[k]) != null,
+            adds: (k) => movedBlockOf(movedAt, adds[k]) != null,
+          },
         ),
       );
       for (const row of aligned) {
@@ -669,7 +689,9 @@
   /** Word-level diff per hunk-line index, computed against the original
    *  flat `hunk.lines`. Looked up by the rows below using each side's
    *  source HunkLine. */
-  const wordDiff = $derived(computeHunkWordDiff(hunk.lines));
+  const wordDiff = $derived(
+    computeHunkWordDiff(hunk.lines, (i) => movedBlockOf(movedAt, hunk.lines[i]) != null),
+  );
 
   function hunkLineIndex(line: HunkLine | null): number | null {
     if (!line) return null;
@@ -774,6 +796,28 @@
   }
 </script>
 
+<!-- Label row above a moved block. Both halves render it when either
+     side starts a block so the halves stay row-aligned. `mine` is this
+     half's block, if any. -->
+{#snippet movedLabelRow(mine: MovedLines | null, other: MovedLines | null)}
+  {#if mine || other}
+    <tr class="moved-label-row">
+      <td colspan="2">
+        {#if mine}
+          <a
+            class="moved-badge{movedClass(mine)}"
+            data-tour="moved-badge"
+            title={movedTitle(mine, filePath)}
+            href={movedHref(mine)}>{movedLabel(mine, filePath)}</a
+          >
+        {:else}
+          <span class="moved-badge-spacer" aria-hidden="true"></span>
+        {/if}
+      </td>
+    </tr>
+  {/if}
+{/snippet}
+
 <div class="sbs-pair" bind:this={pairEl}>
   <div
     class="sbs-side base"
@@ -796,12 +840,17 @@
             showComments &&
             entriesAt('base', leftLine).length > 0}
           {@const leftStackZ = leftHasMarker ? rows.length - i + 1 : undefined}
+          {@const leftMoved = row.left ? movedBlockOf(movedAt, row.left) : null}
+          {@render movedLabelRow(
+            movedBlockStartingAt(movedAt, row.left),
+            movedBlockStartingAt(movedAt, row.right),
+          )}
           <tr class="sbs-row {row.kind}">
             <!-- data-side/data-line are also on the gutter cell so the
                  drag-selection logic finds it via `elementFromPoint` even
                  when the user's cursor stays in the sticky gutter column. -->
             <td
-              class="ln {row.left ? row.left.origin : 'empty'}"
+              class="ln {row.left ? row.left.origin : 'empty'}{movedClass(leftMoved)}"
               data-side="base"
               data-line={leftLine ?? ''}
               style:z-index={leftStackZ}
@@ -845,7 +894,7 @@
               {row.left?.base_line ?? row.left?.tip_line ?? ''}
             </td>
             <td
-              class={`content ${row.left ? row.left.origin : 'empty'}${isCommented('base', leftLine) ? ' commented' : ''}${isFullLineCommented('base', leftLine) ? ' commented-fullline' : ''}${commentRangeClasses('base', leftLine)}`}
+              class={`content ${row.left ? row.left.origin : 'empty'}${movedClass(leftMoved)}${isCommented('base', leftLine) ? ' commented' : ''}${isFullLineCommented('base', leftLine) ? ' commented-fullline' : ''}${commentRangeClasses('base', leftLine)}`}
               data-side="base"
               data-line={leftLine ?? ''}
               onclick={(e) => onContentClick(e, 'base', leftLine)}
@@ -955,9 +1004,14 @@
             showComments &&
             entriesAt('tip', rightLine).length > 0}
           {@const rightStackZ = rightHasMarker ? rows.length - i + 1 : undefined}
+          {@const rightMoved = row.right ? movedBlockOf(movedAt, row.right) : null}
+          {@render movedLabelRow(
+            movedBlockStartingAt(movedAt, row.right),
+            movedBlockStartingAt(movedAt, row.left),
+          )}
           <tr class="sbs-row {row.kind}">
             <td
-              class="ln {row.right ? row.right.origin : 'empty'}"
+              class="ln {row.right ? row.right.origin : 'empty'}{movedClass(rightMoved)}"
               data-side="tip"
               data-line={rightLine ?? ''}
               style:z-index={rightStackZ}
@@ -998,7 +1052,7 @@
               {row.right?.tip_line ?? row.right?.base_line ?? ''}
             </td>
             <td
-              class={`content ${row.right ? row.right.origin : 'empty'}${isCommented('tip', rightLine) ? ' commented' : ''}${isFullLineCommented('tip', rightLine) ? ' commented-fullline' : ''}${commentRangeClasses('tip', rightLine)}`}
+              class={`content ${row.right ? row.right.origin : 'empty'}${movedClass(rightMoved)}${isCommented('tip', rightLine) ? ' commented' : ''}${isFullLineCommented('tip', rightLine) ? ' commented-fullline' : ''}${commentRangeClasses('tip', rightLine)}`}
               data-side="tip"
               data-line={rightLine ?? ''}
               onclick={(e) => onContentClick(e, 'tip', rightLine)}
@@ -1280,6 +1334,64 @@
   }
 
   .ln.empty,
+  /* Moved lines go quiet so the real edits around them stand out. A
+   * bar on the code's left edge says which end of the move this is. */
+  .ln.moved {
+    background: var(--bg-elevated);
+  }
+  .content.moved {
+    background: var(--bg-panel);
+    box-shadow: inset 3px 0 0 var(--moved-edge);
+  }
+  .content.moved pre {
+    opacity: 0.65;
+  }
+  .moved-from {
+    --moved-edge: var(--moved-from-edge);
+  }
+  .moved-to {
+    --moved-edge: var(--moved-to-edge);
+  }
+  .moved-alt {
+    --moved-edge: var(--moved-alt-edge);
+  }
+
+  .moved-label-row td {
+    padding: 2px 8px;
+    background: var(--bg);
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    line-height: 1.4;
+    user-select: none;
+  }
+  .moved-badge,
+  .moved-badge-spacer {
+    position: sticky;
+    left: 8px;
+    display: inline-block;
+    /* Never wider than the visible pane, so a long label ends in an
+     * ellipsis instead of running under the pane's edge. */
+    max-width: calc(var(--content-vp-width, 100%) - 24px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: bottom;
+    padding: 0 6px;
+    border: 1px solid var(--moved-edge, transparent);
+    border-radius: 999px;
+    font-size: 11px;
+  }
+  .moved-badge {
+    color: var(--moved-edge);
+    text-decoration: none;
+  }
+  .moved-badge:hover {
+    background: var(--bg-panel);
+  }
+  /* Holds the row at the badge's height on the half without a block. */
+  .moved-badge-spacer::before {
+    content: '\00a0';
+  }
+
   .content.empty {
     background: var(--bg-panel);
   }
