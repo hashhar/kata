@@ -3260,13 +3260,14 @@
     startLine: number,
     endLine: number,
   ) {
-    const lineSel = `[data-side="${side}"][data-line="${startLine}"]`;
+    // Line numbers repeat across files, so every lookup is scoped to
+    // the linked file.
+    const fileSel = `[data-file-path="${CSS.escape(path)}"]`;
+    const lineSel = `${fileSel} [data-side="${side}"][data-line="${startLine}"]`;
     let row = document.querySelector(lineSel) as HTMLElement | null;
     if (!row) {
       // Mount the file's slot, then poll for the row to appear.
-      const slot = document.querySelector(
-        `[data-file-path="${CSS.escape(path)}"]`,
-      ) as HTMLElement | null;
+      const slot = document.querySelector(fileSel) as HTMLElement | null;
       if (!slot) return;
       scrollTopOf(slot);
       const deadline = performance.now() + 10000;
@@ -3326,7 +3327,7 @@
     const highlighted: HTMLElement[] = [];
     for (let ln = startLine; ln <= endLine; ln++) {
       const cells = document.querySelectorAll(
-        `[data-side="${side}"][data-line="${ln}"]`,
+        `${fileSel} [data-side="${side}"][data-line="${ln}"]`,
       );
       for (const c of cells) {
         (c as HTMLElement).classList.add('highlight-anchor');
