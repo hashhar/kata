@@ -31,8 +31,10 @@
     movedLabel,
     movedLookup,
     movedTitle,
+    moveKey,
     type MovedLookup,
   } from '../lib/moved';
+  import type { MovedHover } from '../lib/movedHover.svelte';
   import type { MovedLines } from '../lib/types';
   import { preserveScrollAnchor } from '../lib/scrollAnchor';
   import type { SearchMatch } from '../lib/search';
@@ -693,6 +695,17 @@
     computeHunkWordDiff(hunk.lines, (i) => movedBlockOf(movedAt, hunk.lines[i]) != null),
   );
 
+  /** Hovering any row of a moved block, or its label, highlights both
+   *  ends of the block. Absent in standalone renders. */
+  const movedHover = getContext<MovedHover | undefined>('kata-moved-hover');
+  function hoverMove(m: MovedLines | null) {
+    movedHover?.set(m ? moveKey(m, filePath) : null);
+  }
+  function movedHoverClass(m: MovedLines | null): string {
+    return m && movedHover?.key === moveKey(m, filePath) ? ' moved-hover' : '';
+  }
+
+
   function hunkLineIndex(line: HunkLine | null): number | null {
     if (!line) return null;
     const idx = hunk.lines.indexOf(line);
@@ -805,8 +818,10 @@
       <td colspan="2">
         {#if mine}
           <a
-            class="moved-badge{movedClass(mine)}"
+            class="moved-badge{movedClass(mine)}{movedHoverClass(mine)}"
             data-tour="moved-badge"
+            onmouseenter={() => hoverMove(mine)}
+            onmouseleave={() => hoverMove(null)}
             title={movedTitle(mine, filePath)}
             href={movedHref(mine)}>{movedLabel(mine, filePath)}</a
           >
@@ -845,7 +860,11 @@
             movedBlockStartingAt(movedAt, row.left),
             movedBlockStartingAt(movedAt, row.right),
           )}
-          <tr class="sbs-row {row.kind}">
+          <tr
+            class="sbs-row {row.kind}{movedHoverClass(leftMoved)}"
+            onmouseenter={leftMoved ? () => hoverMove(leftMoved) : undefined}
+            onmouseleave={leftMoved ? () => hoverMove(null) : undefined}
+          >
             <!-- data-side/data-line are also on the gutter cell so the
                  drag-selection logic finds it via `elementFromPoint` even
                  when the user's cursor stays in the sticky gutter column. -->
@@ -1009,7 +1028,11 @@
             movedBlockStartingAt(movedAt, row.right),
             movedBlockStartingAt(movedAt, row.left),
           )}
-          <tr class="sbs-row {row.kind}">
+          <tr
+            class="sbs-row {row.kind}{movedHoverClass(rightMoved)}"
+            onmouseenter={rightMoved ? () => hoverMove(rightMoved) : undefined}
+            onmouseleave={rightMoved ? () => hoverMove(null) : undefined}
+          >
             <td
               class="ln {row.right ? row.right.origin : 'empty'}{movedClass(rightMoved)}"
               data-side="tip"
@@ -1334,17 +1357,19 @@
   }
 
   .ln.empty,
-  /* Moved lines go quiet so the real edits around them stand out. A
-   * bar on the code's left edge says which end of the move this is. */
+  /* Moved lines sit on a faint tint of their end's colour, with text a
+   * little dimmed, so they read apart from both context and the real
+   * edits. A bar on the code's left edge repeats the colour. The tints
+   * mix into the opaque page background because the gutter is sticky. */
   .ln.moved {
-    background: var(--bg-elevated);
+    background: color-mix(in srgb, var(--moved-edge) 16%, var(--bg));
   }
   .content.moved {
-    background: var(--bg-panel);
-    box-shadow: inset 3px 0 0 var(--moved-edge);
+    background: color-mix(in srgb, var(--moved-edge) 9%, var(--bg));
+    box-shadow: inset 4px 0 0 var(--moved-edge);
   }
   .content.moved pre {
-    opacity: 0.65;
+    opacity: 0.8;
   }
   .moved-from {
     --moved-edge: var(--moved-from-edge);
@@ -1354,6 +1379,20 @@
   }
   .moved-alt {
     --moved-edge: var(--moved-alt-edge);
+  }
+
+  /* Both ends of the hovered moved block. */
+  .moved-hover .content,
+  .moved-hover.content,
+  .moved-hover .ln,
+  .moved-hover.ln {
+    background-image: linear-gradient(
+      color-mix(in srgb, var(--moved-edge) 22%, transparent),
+      color-mix(in srgb, var(--moved-edge) 22%, transparent)
+    );
+  }
+  .moved-badge.moved-hover {
+    background: var(--bg-panel);
   }
 
   .moved-label-row td {

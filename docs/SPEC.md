@@ -492,13 +492,15 @@ code. Detection follows `git diff --color-moved=zebra
   import that moves between files doesn't count.
 - Blank lines inside a block move with it.
 
-Moved rows render dimmed on a neutral background with a bar on the
-code's left edge: purple where the code left, teal where it
-arrived. When two moved blocks touch, the second one's bar is
+Moved rows render on a faint tint with slightly dimmed text and a
+bar on the code's left edge, in one colour per end: purple where
+the code left, teal where it arrived. When two moved blocks touch, the second one's bar is
 orange so the boundary shows. A label row above each block names
 the other end ("Code moved to util.py lines 3–8") and links to it.
 The label shows the other file by name, with its full path on hover,
 and ends in an ellipsis when it would be wider than the pane.
+Hovering any row of a moved block, or its label, highlights both
+ends of the block in its colour, across files.
 "Code" keeps the label apart from a comment's "moved" anchor badge
 (§2). Lines edited during the move keep their red and green, so the
 edit stands out from the move. Moved lines take no part in the

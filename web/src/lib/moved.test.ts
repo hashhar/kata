@@ -7,6 +7,7 @@ import {
   movedLabel,
   movedLookup,
   movedTitle,
+  moveKey,
 } from './moved';
 import type { MovedLines } from './types';
 
@@ -58,6 +59,16 @@ describe('moved lines', () => {
   test('links to the other end on the opposite side', () => {
     expect(movedHref(away)).toBe('#L:shop%2Fpricing%2Fdiscounts.py:tip:1-4');
     expect(movedHref(here)).toBe('#L:billing.py:base:2');
+  });
+
+  test('keys both ends of a block the same', () => {
+    const otherEnd: MovedLines = {
+      side: 'tip',
+      lines: { start: 1, end: 4 },
+      other: { path: 'billing.py', lines: { start: 3, end: 6 } },
+    };
+    expect(moveKey(away, 'billing.py')).toBe('billing.py:3>shop/pricing/discounts.py:1');
+    expect(moveKey(otherEnd, 'shop/pricing/discounts.py')).toBe(moveKey(away, 'billing.py'));
   });
 
   test('classes name the end and the zebra colour', () => {

@@ -66,6 +66,14 @@ export function movedHref(m: MovedLines): string {
   });
 }
 
+/** Identifies a moved block by both of its ends, so the removed end
+ *  in one file and the added end in another produce the same key. */
+export function moveKey(m: MovedLines, path: string): string {
+  const here = `${path}:${m.lines.start}`;
+  const there = `${m.other.path}:${m.other.lines.start}`;
+  return m.side === 'base' ? `${here}>${there}` : `${there}>${here}`;
+}
+
 /** CSS classes for a row in a moved block. Empty for other rows. */
 export function movedClass(m: MovedLines | null): string {
   if (!m) return '';

@@ -128,10 +128,10 @@ export const tour: TourStep[] = [
     placement: 'bottom',
     title: 'Moved code',
     body:
-      "Code that moved, within a file or to another one, renders " +
-      "dimmed with a coloured edge so the real edits stand out. The " +
-      "label above each moved block names its other end. Click it " +
-      "to jump there.",
+      "Code that moved, within a file or to another one, gets a " +
+      "faint tint and a coloured edge so the real edits stand out. " +
+      "The label above each moved block names its other end. Hover " +
+      "a block to light up both ends, or click the label to jump.",
   },
   {
     id: 'inline-thread',

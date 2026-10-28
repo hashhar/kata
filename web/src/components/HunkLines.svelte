@@ -30,8 +30,11 @@
     movedLabel,
     movedLookup,
     movedTitle,
+    moveKey,
     type MovedLookup,
   } from '../lib/moved';
+  import type { MovedHover } from '../lib/movedHover.svelte';
+  import type { MovedLines } from '../lib/types';
   import { preserveScrollAnchor } from '../lib/scrollAnchor';
   import type { SearchMatch } from '../lib/search';
 
@@ -345,6 +348,17 @@
   const wordDiff = $derived(
     computeHunkWordDiff(hunk.lines, (i) => movedBlockOf(movedAt, hunk.lines[i]) != null),
   );
+
+  /** Hovering any row of a moved block, or its label, highlights both
+   *  ends of the block. Absent in standalone renders. */
+  const movedHover = getContext<MovedHover | undefined>('kata-moved-hover');
+  function hoverMove(m: MovedLines | null) {
+    movedHover?.set(m ? moveKey(m, filePath) : null);
+  }
+  function movedHoverClass(m: MovedLines | null): string {
+    return m && movedHover?.key === moveKey(m, filePath) ? ' moved-hover' : '';
+  }
+
 
   /** Apply the word-diff overlay (if any) and any intra-line column
    *  highlights from comments anchored to this row. Word-diff goes
@@ -836,15 +850,20 @@
         <tr class="moved-label-row">
           <td colspan={(showBase ? 1 : 0) + (showTip ? 1 : 0) + 1}>
             <a
-              class="moved-badge{movedClass(movedStart)}"
+              class="moved-badge{movedClass(movedStart)}{movedHoverClass(movedStart)}"
               data-tour="moved-badge"
+              onmouseenter={() => hoverMove(movedStart)}
+              onmouseleave={() => hoverMove(null)}
               title={movedTitle(movedStart, filePath)}
               href={movedHref(movedStart)}>{movedLabel(movedStart, filePath)}</a
             >
           </td>
         </tr>
       {/if}
-      <tr class={`${rowClass(line.origin)}${movedClass(moved)}${isCommented(a) ? ' commented' : ''}${isFullLineCommented(a) ? ' commented-fullline' : ''}${commentRangeClasses(a)}`}>
+      <tr
+        onmouseenter={moved ? () => hoverMove(moved) : undefined}
+        onmouseleave={moved ? () => hoverMove(null) : undefined}
+        class={`${rowClass(line.origin)}${movedClass(moved)}${movedHoverClass(moved)}${isCommented(a) ? ' commented' : ''}${isFullLineCommented(a) ? ' commented-fullline' : ''}${commentRangeClasses(a)}`}>
         {#if showBase}
           <!-- data-side/data-line are also on the gutter cell so that the
                drag-selection logic finds it via `elementFromPoint` while
@@ -1220,19 +1239,21 @@
     background: var(--remove-bg-strong);
   }
 
-  /* Moved lines go quiet so the real edits around them stand out. A
-   * bar on the code's left edge says which end of the move this is. */
+  /* Moved lines sit on a faint tint of their end's colour, with text a
+   * little dimmed, so they read apart from both context and the real
+   * edits. A bar on the code's left edge repeats the colour. The tints
+   * mix into the opaque page background because the gutter is sticky. */
   .row.moved {
-    background: var(--bg-panel);
+    background: color-mix(in srgb, var(--moved-edge) 9%, var(--bg));
   }
   .row.moved .ln {
-    background: var(--bg-elevated);
+    background: color-mix(in srgb, var(--moved-edge) 16%, var(--bg));
   }
   .row.moved .content {
-    box-shadow: inset 3px 0 0 var(--moved-edge);
+    box-shadow: inset 4px 0 0 var(--moved-edge);
   }
   .row.moved .content pre {
-    opacity: 0.65;
+    opacity: 0.8;
   }
   .moved-from {
     --moved-edge: var(--moved-from-edge);
@@ -1242,6 +1263,20 @@
   }
   .moved-alt {
     --moved-edge: var(--moved-alt-edge);
+  }
+
+  /* Both ends of the hovered moved block. */
+  .moved-hover .content,
+  .moved-hover.content,
+  .moved-hover .ln,
+  .moved-hover.ln {
+    background-image: linear-gradient(
+      color-mix(in srgb, var(--moved-edge) 22%, transparent),
+      color-mix(in srgb, var(--moved-edge) 22%, transparent)
+    );
+  }
+  .moved-badge.moved-hover {
+    background: var(--bg-panel);
   }
 
   .moved-label-row td {

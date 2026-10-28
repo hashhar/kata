@@ -24,6 +24,7 @@
   import { resolutionFor } from '../lib/resolution';
   import { createFoldStore, type FoldStore } from '../lib/foldStore';
   import { parseLineRangeHash } from '../lib/linkHash';
+  import { createMovedHover } from '../lib/movedHover.svelte';
   import { searchReview, selectorForMatch, type SearchMatch } from '../lib/search';
   import {
     annotationComposerSurvivesPatchset,
@@ -640,6 +641,10 @@
       ? searchMatches[searchPosition - 1]
       : null,
   );
+
+  // Shared across files so hovering one end of a moved block lights up
+  // the other end.
+  setContext('kata-moved-hover', createMovedHover());
 
   // Expose the active search state to descendants so the renderers
   // (HunkLines / CommentThread / AnnotationBubble) can decide whether
